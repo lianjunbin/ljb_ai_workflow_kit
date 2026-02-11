@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Workflow v1.4 - 工程思维导图</title>
+    <style>
+        :root {
+            --bg-primary: #0f1419;
+            --bg-secondary: #1a1f27;
+            --bg-card: #242b35;
+            --border-subtle: rgba(255, 255, 255, 0.1);
+            --text-primary: #e7e9ea;
+            --text-secondary: #8b98a5;
+            --accent-cyan: #00d4ff;
+            --accent-green: #00e676;
+            --accent-yellow: #ffc107;
+            --accent-purple: #b388ff;
+            --accent-orange: #ff9800;
+            --accent-pink: #ff4081;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(120deg, var(--accent-cyan), var(--accent-green));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+        }
+
+        /* 思维导图容器 */
+        .mindmap {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+            position: relative;
+        }
+
+        /* 中心节点 */
+        .center-node {
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-green) 100%);
+            border-radius: 20px;
+            padding: 30px 40px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 212, 255, 0.3);
+            position: relative;
+            z-index: 10;
+        }
+
+        .center-node h2 {
+            font-size: 1.5rem;
+            color: #000;
+            margin-bottom: 8px;
+        }
+
+        .center-node .version {
+            font-size: 0.9rem;
+            color: rgba(0, 0, 0, 0.7);
+        }
+
+        /* 分支容器 */
+        .branches {
+            display: flex;
+            flex-direction: column;
+            gap: 60px;
+        }
+
+        .left-branches, .right-branches {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            width: 550px;
+        }
+
+        /* 分支节点 */
+        .branch {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 20px;
+            border-left: 4px solid var(--accent-cyan);
+            transition: all 0.3s ease;
+        }
+
+        .branch:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .branch.workflow { border-left-color: var(--accent-cyan); }
+        .branch.skills { border-left-color: var(--accent-green); }
+        .branch.agents { border-left-color: var(--accent-purple); }
+        .branch.docs { border-left-color: var(--accent-yellow); }
+        .branch.principle { border-left-color: var(--accent-orange); }
+        .branch.features { border-left-color: var(--accent-pink); }
+
+        .branch-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .branch-icon {
+            font-size: 1.5rem;
+        }
+
+        .branch-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .branch-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        /* 子节点 */
+        .sub-nodes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .sub-node {
+            background: var(--bg-secondary);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+        }
+
+        .sub-node:hover {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .sub-node.highlight {
+            background: rgba(0, 212, 255, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .sub-node.new {
+            background: rgba(0, 230, 118, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(0, 230, 118, 0.3);
+        }
+
+        /* 阶段流程 */
+        .phase-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .phase-section {
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+        }
+
+        .phase-section.analysis {
+            background: rgba(0, 212, 255, 0.1);
+            border-left: 3px solid var(--accent-cyan);
+        }
+
+        .phase-section.execution {
+            background: rgba(0, 230, 118, 0.1);
+            border-left: 3px solid var(--accent-green);
+        }
+
+        .phase-label {
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .phase-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .phase-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        /* 连接线 SVG */
+        .connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* 图例 */
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 40px;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.cyan { background: var(--accent-cyan); }
+        .legend-dot.green { background: var(--accent-green); }
+        .legend-dot.purple { background: var(--accent-purple); }
+        .legend-dot.yellow { background: var(--accent-yellow); }
+        .legend-dot.orange { background: var(--accent-orange); }
+        .legend-dot.pink { background: var(--accent-pink); }
+
+        /* 响应式 */
+        @media (max-width: 1400px) {
+            .mindmap {
+                flex-direction: column;
+                align-items: center;
+            }
+            .left-branches, .right-branches {
+                width: 100%;
+                max-width: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Workflow 工程思维导图</h1>
+        <p class="subtitle">管理后台 AI 开发工作流 v1.4 - 完整架构概览</p>
+
+        <div class="mindmap">
+            <!-- 左侧分支 -->
+            <div class="left-branches">
+                <!-- 核心原则 -->
+                <div class="branch principle">
+                    <div class="branch-header">
+                        <span class="branch-icon">🏛️</span>
+                        <span class="branch-title">核心设计原则</span>
+                    </div>
+                    <div class="branch-desc">APPLY 之前，只做分析设计，不动一行代码</div>
+                    <div class="phase-flow">
+                        <div class="phase-section analysis">
+                            <div class="phase-label">📖 分析设计阶段（只读）</div>
+                            <div class="phase-items">
+                                <span class="phase-item">INIT</span>
+                                <span class="phase-item">START</span>
+                                <span class="phase-item">DESIGN</span>
+                                <span class="phase-item">AUDIT</span>
+                            </div>
+                        </div>
+                        <div class="phase-section execution">
+                            <div class="phase-label">✏️ 执行阶段（写入）</div>
+                            <div class="phase-items">
+                                <span class="phase-item">APPLY</span>
+                                <span class="phase-item">REVIEW</span>
+                                <span class="phase-item">ARCHIVE</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 工作流阶段 -->
+                <div class="branch workflow">
+                    <div class="branch-header">
+                        <span class="branch-icon">🔄</span>
+                        <span class="branch-title">7 阶段精简工作流</span>
+                    </div>
+                    <div class="branch-desc">从 Jira 需求到代码交付的完整流程</div>
+                    <div class="sub-nodes">
+                        <span class="sub-node">🎬 01-INIT 初始化</span>
+                        <span class="sub-node highlight">📋 02-START 需求准备</span>
+                        <span class="sub-node highlight">🎨 03-DESIGN 提案设计</span>
+                        <span class="sub-node">📑 04-AUDIT 提案审阅</span>
+                        <span class="sub-node">⚡ 05-APPLY 应用代码</span>
+                        <span class="sub-node">🔍 06-REVIEW 代码走读</span>
+                        <span class="sub-node">📦 07-ARCHIVE 归档</span>
+                    </div>
+                </div>
+
+                <!-- Skills 目录 -->
+                <div class="branch skills">
+                    <div class="branch-header">
+                        <span class="branch-icon">📚</span>
+                        <span class="branch-title">skills/admin-workflow/</span>
+                    </div>
+                    <div class="branch-desc">7 阶段核心工作流命令</div>
+                    <div class="sub-nodes">
+                        <span class="sub-node">00-admin.md</span>
+                        <span class="sub-node">01-init.md</span>
+                        <span class="sub-node highlight">02-start.md</span>
+                        <span class="sub-node highlight">03-design.md</span>
+                        <span class="sub-node">04-audit.md</span>
+                        <span class="sub-node">05-apply.md</span>
+                        <span class="sub-node">06-review.md</span>
+                        <span class="sub-node">07-archive.md</span>
+                        <span class="sub-node">other/</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 中心节点 -->
+            <div class="center-node">
+                <h2>Admin Workflow</h2>
+                <div class="version">v1.4.0</div>
+            </div>
+
+            <!-- 右侧分支 -->
+            <div class="right-branches">
+                <!-- 新特性 -->
+                <div class="branch features">
+                    <div class="branch-header">
+                        <span class="branch-icon">✨</span>
+                        <span class="branch-title">v1.4 新特性</span>
+                    </div>
+                    <div class="branch-desc">7 阶段精简 + 智能化 API 获取</div>
+                    <div class="sub-nodes">
+                        <span class="sub-node new">📦 阶段精简 9→7</span>
+                        <span class="sub-node new">📋 START 四步流程</span>
+                        <span class="sub-node new">🔗 Jira curl 拉取</span>
+                        <span class="sub-node new">🤖 API 智能获取(默认)</span>
+                        <span class="sub-node new">📊 复杂度评估</span>
+                        <span class="sub-node new">🔄 多轮迭代支持</span>
+                    </div>
+                </div>
+
+                <!-- Agents 目录 -->
+                <div class="branch agents">
+                    <div class="branch-header">
+                        <span class="branch-icon">🤖</span>
+                        <span class="branch-title">agents/ 按职能分组</span>
+                    </div>
+                    <div class="branch-desc">7 个 AI 代理，按功能分类</div>
+                    <div class="sub-nodes">
+                        <span class="sub-node">design/code-architect</span>
+                        <span class="sub-node">explore/code-explorer</span>
+                        <span class="sub-node">audit/impact-analyzer</span>
+                        <span class="sub-node">audit/qa-arch-reviewer</span>
+                        <span class="sub-node">audit/qa-security-reviewer</span>
+                        <span class="sub-node">review/code-reviewer</span>
+                        <span class="sub-node">review/code-simplifier</span>
+                    </div>
+                </div>
+
+                <!-- 文档 -->
+                <div class="branch docs">
+                    <div class="branch-header">
+                        <span class="branch-icon">📖</span>
+                        <span class="branch-title">docs/ 文档</span>
+                    </div>
+                    <div class="branch-desc">设计原则与交互式流程图</div>
+                    <div class="sub-nodes">
+                        <span class="sub-node highlight">workflow-diagram.html</span>
+                        <span class="sub-node highlight">WORKFLOW-PRINCIPLES.md</span>
+                        <span class="sub-node new">project-mindmap.html</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 图例 -->
+        <div class="legend">
+            <div class="legend-item">
+                <span class="legend-dot cyan"></span>
+                <span>工作流阶段</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot green"></span>
+                <span>Skills 命令</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot purple"></span>
+                <span>AI Agents</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot yellow"></span>
+                <span>文档</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot orange"></span>
+                <span>设计原则</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot pink"></span>
+                <span>v1.4 新特性</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

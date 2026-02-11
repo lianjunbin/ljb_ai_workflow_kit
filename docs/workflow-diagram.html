@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Workflow v1.4 - AI 开发工作流</title>
+    <style>
+        :root {
+            --bg-primary: #1a1d24;
+            --bg-secondary: #22262f;
+            --bg-card: #282c35;
+            --border-subtle: rgba(255, 255, 255, 0.12);
+            --border-hover: rgba(255, 255, 255, 0.25);
+            --text-primary: #f0f0f5;
+            --text-secondary: #a0a5b5;
+            --text-muted: #6b7280;
+            --accent-cyan: #22d3ee;
+            --accent-green: #34d399;
+            --accent-yellow: #fbbf24;
+            --accent-purple: #a78bfa;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* Ambient Background */
+        .ambient-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .ambient-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.15;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, var(--accent-cyan) 0%, transparent 70%);
+            top: -100px;
+            right: 0;
+        }
+
+        .orb-2 {
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, var(--accent-purple) 0%, transparent 70%);
+            bottom: 0;
+            left: -50px;
+        }
+
+        .app {
+            position: relative;
+            z-index: 1;
+            padding: 20px 32px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .logo h1 {
+            font-size: 1.1rem;
+            background: linear-gradient(120deg, var(--accent-cyan), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .version-badge {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        /* Flow Bar - Ultra Compact */
+        .flow-bar {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow-x: auto;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .flow-node {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .flow-node:hover {
+            background: #2d323d;
+            border-color: var(--node-color);
+        }
+
+        .flow-node.active {
+            background: #2d323d;
+            border-color: var(--node-color);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+        }
+
+        .flow-node-icon { font-size: 0.9rem; }
+        .flow-node-name {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--node-color);
+        }
+
+        .flow-node-badge {
+            font-size: 0.5rem;
+            padding: 1px 4px;
+            background: rgba(0, 212, 255, 0.2);
+            border-radius: 6px;
+            color: var(--accent-cyan);
+        }
+
+        .flow-arrow {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            flex-shrink: 0;
+        }
+
+        .node-init { --node-color: #ff6b6b; }
+        .node-start { --node-color: #ffd93d; }
+        .node-api { --node-color: #48dbfb; }
+        .node-before { --node-color: #ff9ff3; }
+        .node-assess { --node-color: #f97316; }
+        .node-design { --node-color: #00d4ff; }
+        .node-audit { --node-color: #ff6b6b; }
+        .node-apply { --node-color: #ffd93d; }
+        .node-review { --node-color: #00ff88; }
+        .node-archive { --node-color: #a855f7; }
+
+        /* Card relevance animations */
+        .cmd-card {
+            transition: all 0.3s ease-out;
+        }
+
+        .cmd-card.primary-match {
+            border-color: var(--cmd-color, var(--accent-cyan)) !important;
+            background: rgba(0, 212, 255, 0.08);
+            transform: scale(1.02);
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.15);
+            order: -3 !important;
+        }
+
+        .cmd-card.adjacent-match {
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.04);
+            order: -2 !important;
+        }
+
+        .cmd-card.related-match {
+            opacity: 0.9;
+            order: -1 !important;
+        }
+
+        .cmd-card.dimmed {
+            opacity: 0.5;
+            transform: scale(0.98);
+        }
+
+        /* Flow node click feedback */
+        .flow-node {
+            user-select: none;
+            position: relative;
+        }
+
+        .flow-node:active {
+            transform: scale(0.95);
+        }
+
+        /* Selection indicator */
+        .flow-node.selected {
+            background: rgba(255, 255, 255, 0.12) !important;
+            border-color: var(--node-color) !important;
+            box-shadow: 0 0 16px color-mix(in srgb, var(--node-color) 30%, transparent);
+        }
+
+        .flow-node.selected::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid var(--node-color);
+        }
+
+        /* Main content layout */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        /* Commands grid */
+        .commands-section {
+            min-width: 0;
+        }
+
+        /* Stage detail panel */
+        .stage-detail {
+            display: block;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 16px;
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .stage-detail-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .stage-detail-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stage-detail-title .icon {
+            font-size: 1.4rem;
+        }
+
+        .stage-detail-title h3 {
+            font-size: 1rem;
+            color: var(--stage-color, var(--accent-cyan));
+            margin: 0;
+        }
+
+        .stage-detail-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .stage-detail-section {
+            margin-bottom: 16px;
+        }
+
+        .stage-detail-section h4 {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stage-cmd-item {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .stage-cmd-name {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.8rem;
+            color: var(--accent-green);
+            margin-bottom: 4px;
+        }
+
+        .stage-cmd-desc {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .stage-example {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            padding: 8px 10px;
+            background: var(--bg-primary);
+            border-radius: 6px;
+            border-left: 3px solid var(--stage-color, var(--accent-cyan));
+            margin-bottom: 6px;
+        }
+
+        .stage-tips {
+            background: rgba(34, 211, 238, 0.1);
+            border: 1px solid rgba(34, 211, 238, 0.25);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .stage-tips h5 {
+            font-size: 0.7rem;
+            color: var(--accent-cyan);
+            margin-bottom: 6px;
+        }
+
+        .stage-tips ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .stage-tips li {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+            padding-left: 14px;
+            position: relative;
+            margin-bottom: 4px;
+        }
+
+        .stage-tips li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: var(--accent-cyan);
+        }
+
+        /* Flow indicator line */
+        .stage-flow-hint {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .stage-flow-hint .prev,
+        .stage-flow-hint .next {
+            padding: 3px 8px;
+            background: var(--glass-bg);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .stage-flow-hint .prev:hover,
+        .stage-flow-hint .next:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+        }
+
+        /* Command Reference - All Commands Visible */
+        .commands-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .commands-grid .cmd-card {
+            flex: 1 1 calc(33.333% - 8px);
+            min-width: 280px;
+            max-width: calc(33.333% - 8px);
+        }
+
+        .cmd-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .cmd-card:hover {
+            border-color: var(--cmd-color, var(--accent-cyan));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .cmd-card.active {
+            border-color: var(--cmd-color, var(--accent-cyan));
+            background: #2d323d;
+        }
+
+        .cmd-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .cmd-icon {
+            font-size: 1.1rem;
+        }
+
+        .cmd-name {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.8rem;
+            color: var(--accent-green);
+        }
+
+        .cmd-badge {
+            font-size: 0.55rem;
+            padding: 2px 5px;
+            background: rgba(0, 212, 255, 0.15);
+            border-radius: 8px;
+            color: var(--accent-cyan);
+            margin-left: auto;
+        }
+
+        .cmd-desc {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .cmd-examples {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .cmd-example {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+            padding: 5px 8px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+            border-left: 2px solid var(--cmd-color, var(--accent-cyan));
+        }
+
+        /* Quick Reference */
+        .quick-ref {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .quick-ref h3 {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .ref-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .ref-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .ref-item-title {
+            font-size: 0.72rem;
+            color: var(--accent-cyan);
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .ref-item-cmd {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.68rem;
+            color: var(--accent-green);
+            margin-bottom: 3px;
+        }
+
+        .ref-item-desc {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        /* Features Row */
+        .features-row {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+        }
+
+        .feature-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 12px 8px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-icon { font-size: 1.2rem; margin-bottom: 4px; }
+        .feature-title { font-size: 0.7rem; color: var(--text-primary); margin-bottom: 2px; }
+        .feature-desc { font-size: 0.6rem; color: var(--text-muted); line-height: 1.3; }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 16px;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
+        .footer a { color: var(--accent-cyan); text-decoration: none; }
+
+        /* Responsive */
+        @media (max-width: 1000px) {
+            .commands-grid { grid-template-columns: repeat(2, 1fr); }
+            .ref-grid { grid-template-columns: repeat(2, 1fr); }
+            .features-row { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (max-width: 600px) {
+            .app { padding: 16px; }
+            .commands-grid { grid-template-columns: 1fr; }
+            .ref-grid { grid-template-columns: 1fr; }
+            .features-row { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="ambient-bg">
+        <div class="ambient-orb orb-1"></div>
+        <div class="ambient-orb orb-2"></div>
+    </div>
+
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">🚀</div>
+                <h1>Admin Workflow v1.4</h1>
+            </div>
+            <div class="version-badge">7阶段 · 8命令 · 7代理 · AI 驱动</div>
+        </header>
+
+        <!-- Compact Flow Bar (7 阶段精简版) -->
+        <div class="flow-bar">
+            <div class="flow-node node-init" data-stage="init"><span class="flow-node-icon">🎬</span><span class="flow-node-name">INIT</span></div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-node node-start" data-stage="start"><span class="flow-node-icon">📋</span><span class="flow-node-name">START</span><span class="flow-node-badge">一站式</span></div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-node node-design" data-stage="design"><span class="flow-node-icon">🎨</span><span class="flow-node-name">DESIGN</span><span class="flow-node-badge">含权限</span></div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-node node-audit" data-stage="audit"><span class="flow-node-icon">📑</span><span class="flow-node-name">AUDIT</span><span class="flow-node-badge">多轮</span></div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-node node-apply" data-stage="apply"><span class="flow-node-icon">⚡</span><span class="flow-node-name">APPLY</span></div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-node node-review" data-stage="review"><span class="flow-node-icon">🔍</span><span class="flow-node-name">REVIEW</span><span class="flow-node-badge">多轮</span></div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-node node-archive" data-stage="archive"><span class="flow-node-icon">📦</span><span class="flow-node-name">ARCHIVE</span></div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content" id="mainContent">
+            <!-- Commands Section (Left) -->
+            <div class="commands-section">
+                <div class="commands-grid" id="commandsGrid">
+            <!-- Init -->
+            <div class="cmd-card" data-stages="init" style="--cmd-color: #ff6b6b;">
+                <div class="cmd-header">
+                    <span class="cmd-icon">🎬</span>
+                    <span class="cmd-name">/admin:init</span>
+                </div>
+                <p class="cmd-desc">初始化项目，检测技术栈，生成 OpenSpec 配置。首次使用时执行一次。</p>
+                <div class="cmd-examples">
+                    <code class="cmd-example">/admin:init</code>
+                </div>
+            </div>
+
+            <!-- Start (引导式信息收集 · 智能获取) -->
+            <div class="cmd-card" data-stages="start,init,design" style="--cmd-color: #ffd93d;">
+                <div class="cmd-header">
+                    <span class="cmd-icon">📋</span>
+                    <span class="cmd-name">/admin:start</span>
+                    <span class="cmd-badge">智能获取</span>
+                </div>
+                <p class="cmd-desc">🆕 ① Jira获取 ② API智能获取(默认，可跳过) ③ 业务分析 ④ 复杂度评估</p>
+                <div class="cmd-examples">
+                    <code class="cmd-example">/admin:start PIX-1234  → 标准流程</code>
+                    <code class="cmd-example">/admin:start PIX-1234 -q  → 快速(减少引导)</code>
+                    <code class="cmd-example">/admin:start PIX-1234 -f  → 完整(更多引导)</code>
+                </div>
+            </div>
+
+            <!-- Design (含权限配置) -->
+            <div class="cmd-card" data-stages="design,start,audit" style="--cmd-color: #00d4ff;">
+                <div class="cmd-header">
+                    <span class="cmd-icon">🎨</span>
+                    <span class="cmd-name">/admin:design</span>
+                    <span class="cmd-badge">含智能评估</span>
+                </div>
+                <p class="cmd-desc">🆕 自动评估需求复杂度→推荐策略→并行生成设计方案。</p>
+                <div class="cmd-examples">
+                    <code class="cmd-example">/admin:design  → 自动评估 + 推荐策略</code>
+                    <code class="cmd-example">/admin:design -q  → 跳过评估，快速1方案</code>
+                    <code class="cmd-example">/admin:design -s  → 跳过评估，标准2方案</code>
+                    <code class="cmd-example">/admin:design -d  → 跳过评估，深度3方案</code>
+                </div>
+            </div>
+
+            <!-- Audit -->
+            <div class="cmd-card" data-stages="audit,design,apply" style="--cmd-color: #ff6b6b;">
+                <div class="cmd-header">
+                    <span class="cmd-icon">📑</span>
+                    <span class="cmd-name">/admin:audit</span>
+                    <span class="cmd-badge">多轮迭代</span>
+                </div>
+                <p class="cmd-desc">审阅提案，预览每个任务的代码逻辑和影响范围。</p>
+                <div class="cmd-examples">
+                    <code class="cmd-example">/admin:audit</code>
+                </div>
+            </div>
+
+            <!-- Apply -->
+            <div class="cmd-card" data-stages="apply,audit,review" style="--cmd-color: #ffd93d;">
+                <div class="cmd-header">
+                    <span class="cmd-icon">⚡</span>
+                    <span class="cmd-name">/admin:apply</span>
+                </div>
+                <p class="cmd-desc">逐任务确认执行，支持暂停和选择性回滚。</p>
+                <div class="cmd-examples">
+                    <code class="cmd-example">/admin:apply</code>
+                    <code class="cmd-example">/admin:apply -c  → 继续执行</code>
+                    <code class="cmd-example">输入 P → 暂停并回滚</code>
+                </div>
+            </div>
+
+            <!-- Review -->
+            <div class="cmd-card" data-stages="review,apply,archive" style="--cmd-color: #00ff88;">
+                <div class="cmd-header">
+                    <span class="cmd-icon">🔍</span>
+                    <span class="cmd-name">/admin:review</span>
+                    <span class="cmd-badge">多轮迭代</span>
+                </div>
+                <p class="cmd-desc">逐文件代码走读，选择性采纳优化，生成 Git 提交建议。</p>
+                <div class="cmd-examples">
+                    <code class="cmd-example">/admin:review</code>
+                    <code class="cmd-example">⚠️ 只审阅本次改动，不动其他代码</code>
+                </div>
+            </div>
+
+            <!-- Archive -->
+            <div class="cmd-card" data-stages="archive,review" style="--cmd-color: #a855f7;">
+                <div class="cmd-header">
+                    <span class="cmd-icon">📦</span>
+                    <span class="cmd-name">/admin:archive</span>
+                </div>
+                <p class="cmd-desc">归档提案到 openspec/archives/，更新索引供未来参考。</p>
+                <div class="cmd-examples">
+                    <code class="cmd-example">/admin:archive</code>
+                </div>
+            </div>
+                </div>
+            </div>
+
+            <!-- Stage Detail Panel (Right) -->
+            <div class="stage-detail" id="stageDetail">
+                <div class="stage-detail-header">
+                    <div class="stage-detail-title">
+                        <span class="icon" id="detailIcon">🎨</span>
+                        <h3 id="detailTitle">DESIGN</h3>
+                    </div>
+                </div>
+                <p class="stage-detail-desc" id="detailDesc">阶段描述</p>
+
+                <div class="stage-detail-section">
+                    <h4>📋 相关命令</h4>
+                    <div id="detailCommands"></div>
+                </div>
+
+                <div class="stage-detail-section">
+                    <h4>💻 常用示例</h4>
+                    <div id="detailExamples"></div>
+                </div>
+
+                <div class="stage-tips" id="detailTips">
+                    <h5>💡 小贴士</h5>
+                    <ul id="detailTipsList"></ul>
+                </div>
+
+                <div class="stage-flow-hint">
+                    <span class="prev" id="prevStage">← 上一步</span>
+                    <span style="flex: 1; text-align: center;">流程导航</span>
+                    <span class="next" id="nextStage">下一步 →</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Reference -->
+        <div class="quick-ref">
+            <h3>⚡ 常用场景速查（7阶段精简版）</h3>
+            <div class="ref-grid">
+                <div class="ref-item">
+                    <div class="ref-item-title">📋 完整开发流程</div>
+                    <div class="ref-item-cmd">start → design → audit → apply → review → archive</div>
+                    <div class="ref-item-desc">标准流程，适合复杂需求</div>
+                </div>
+                <div class="ref-item">
+                    <div class="ref-item-title">🚀 快速修复</div>
+                    <div class="ref-item-cmd">start -q → design -q → apply → review</div>
+                    <div class="ref-item-desc">简单改动，跳过方案对比</div>
+                </div>
+                <div class="ref-item">
+                    <div class="ref-item-title">⚡ 极速出方案</div>
+                    <div class="ref-item-cmd">start PIX-xxx -q → design -q -a</div>
+                    <div class="ref-item-desc">快速需求 + 自动选择方案</div>
+                </div>
+                <div class="ref-item">
+                    <div class="ref-item-title">🔄 暂停恢复</div>
+                    <div class="ref-item-cmd">P 暂停 → design -r → apply -c</div>
+                    <div class="ref-item-desc">发现问题时调整方案</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div class="features-row">
+            <div class="feature-item">
+                <div class="feature-icon">🔄</div>
+                <div class="feature-title">多轮迭代</div>
+                <div class="feature-desc">API/设计/审阅<br>支持多轮完善</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">🤖</div>
+                <div class="feature-title">多代理协同</div>
+                <div class="feature-desc">7个专业代理<br>并行工作</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">📡</div>
+                <div class="feature-title">API 集成</div>
+                <div class="feature-desc">Apifox 文档<br>自动提取</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">✋</div>
+                <div class="feature-title">用户控制</div>
+                <div class="feature-desc">每步确认<br>Git 仅建议</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">🔙</div>
+                <div class="feature-title">选择性回滚</div>
+                <div class="feature-desc">暂停后保留<br>部分任务</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">🔍</div>
+                <div class="feature-title">代码走读</div>
+                <div class="feature-desc">只审阅改动<br>不过度设计</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Made with ❤️ for TrueSightAI · <a href="https://github.com/lianjunbin/ljb_ai_workflow_kit">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // 流程阶段顺序定义（7阶段精简版）
+        const stageOrder = ['init', 'start', 'design', 'audit', 'apply', 'review', 'archive'];
+
+        // 阶段详情数据
+        const stageData = {
+            init: {
+                icon: '🎬',
+                title: 'INIT · 初始化',
+                color: '#ff6b6b',
+                desc: '初始化项目配置，检测技术栈，生成 OpenSpec 目录结构。仅首次使用时执行一次。',
+                commands: [
+                    { name: '/admin:init', desc: '初始化当前项目的 OpenSpec 配置' }
+                ],
+                examples: [
+                    '/admin:init'
+                ],
+                tips: [
+                    '首次使用工作流时执行',
+                    '会自动检测项目技术栈',
+                    '生成 openspec/ 目录结构'
+                ]
+            },
+            start: {
+                icon: '📋',
+                title: 'START · 需求准备',
+                color: '#ffd93d',
+                desc: '🆕 四步流程：① Jira需求获取（curl拉取 + 引导问题） ② API文档收集（🤖智能获取为默认，可跳过） ③ 业务上下文分析（AI报告） ④ 复杂度评估。',
+                commands: [
+                    { name: '/admin:start <Jira编号>', desc: '标准流程：完整四步' },
+                    { name: '/admin:start <Jira编号> -q', desc: '快速模式：减少引导' },
+                    { name: '/admin:start <Jira编号> -f', desc: '完整模式：更多引导' }
+                ],
+                examples: [
+                    '/admin:start PIX-1234',
+                    '/admin:start PIX-1234 -q',
+                    '/admin:start PIX-1234 -f'
+                ],
+                tips: [
+                    '首次使用会引导配置Jira凭证',
+                    'API收集默认智能获取（AI自动点击），可跳过',
+                    'API收集用于字段优化，非必须',
+                    '业务分析报告可多轮修改完善'
+                ]
+            },
+            design: {
+                icon: '🔬🎨',
+                title: 'DESIGN · 智能评估 + 设计',
+                color: '#00d4ff',
+                desc: '🆕 自动评估需求复杂度，检测联动影响，智能推荐策略，并行生成多个设计方案。',
+                commands: [
+                    { name: '/admin:design', desc: '自动评估 + 推荐策略' },
+                    { name: '/admin:design -q', desc: '快速模式（1方案）' },
+                    { name: '/admin:design -s', desc: '标准模式（2方案）' },
+                    { name: '/admin:design -d', desc: '深度模式（3方案）' }
+                ],
+                examples: [
+                    '/admin:design',
+                    '/admin:design -q',
+                    '/admin:design -s -a'
+                ],
+                tips: [
+                    '默认自动评估复杂度',
+                    '检测联动影响点防止遗漏',
+                    '复杂需求自动启用 Brainstorming',
+                    '-a 参数自动选择推荐方案'
+                ]
+            },
+            audit: {
+                icon: '📑',
+                title: 'AUDIT · 提案审阅',
+                color: '#ff6b6b',
+                desc: '审阅提案内容，预览每个任务的代码逻辑，分析影响范围。',
+                commands: [
+                    { name: '/admin:audit', desc: '审阅当前提案' },
+                    { name: '/admin:audit --code-only', desc: '只看代码逻辑' }
+                ],
+                examples: [
+                    '/admin:audit',
+                    '/admin:audit --code-only'
+                ],
+                tips: [
+                    '每个任务都有代码预览',
+                    '显示文件依赖关系图',
+                    '支持多轮迭代修改提案'
+                ]
+            },
+            apply: {
+                icon: '⚡',
+                title: 'APPLY · 应用代码',
+                color: '#ffd93d',
+                desc: '逐任务确认执行，支持暂停和选择性回滚。',
+                commands: [
+                    { name: '/admin:apply', desc: '开始执行任务' },
+                    { name: '/admin:apply -c', desc: '继续执行' },
+                    { name: '输入 P', desc: '暂停并选择回滚' }
+                ],
+                examples: [
+                    '/admin:apply',
+                    '/admin:apply -c',
+                    'P'
+                ],
+                tips: [
+                    '每个任务执行前会确认',
+                    '支持暂停后选择保留部分任务',
+                    '暂停后可调整方案再继续'
+                ]
+            },
+            review: {
+                icon: '🔍',
+                title: 'REVIEW · 代码走读',
+                color: '#00ff88',
+                desc: '逐文件代码走读，选择性采纳优化建议，生成 Git 提交建议。',
+                commands: [
+                    { name: '/admin:review', desc: '开始代码走读' }
+                ],
+                examples: [
+                    '/admin:review'
+                ],
+                tips: [
+                    '只审阅本次改动的文件',
+                    '不会修改无关代码',
+                    '生成规范的 commit 建议',
+                    '优化建议可选择性采纳'
+                ]
+            },
+            archive: {
+                icon: '📦',
+                title: 'ARCHIVE · 归档',
+                color: '#a855f7',
+                desc: '归档提案到 openspec/archives/，更新索引供未来参考。',
+                commands: [
+                    { name: '/admin:archive', desc: '归档当前提案' }
+                ],
+                examples: [
+                    '/admin:archive'
+                ],
+                tips: [
+                    '自动更新归档索引',
+                    '便于未来查阅类似功能',
+                    '保留完整的设计决策记录'
+                ]
+            }
+        };
+
+        // 获取 DOM 元素
+        const flowNodes = document.querySelectorAll('.flow-node');
+        const cmdCards = document.querySelectorAll('.cmd-card');
+        const stageDetail = document.getElementById('stageDetail');
+        const prevStageBtn = document.getElementById('prevStage');
+        const nextStageBtn = document.getElementById('nextStage');
+
+        let currentSelectedStage = null;
+
+        // 显示阶段详情
+        function showStageDetail(stage) {
+            const data = stageData[stage];
+            if (!data) return;
+
+            // 设置颜色变量
+            stageDetail.style.setProperty('--stage-color', data.color);
+
+            // 更新内容
+            document.getElementById('detailIcon').textContent = data.icon;
+            document.getElementById('detailTitle').textContent = data.title;
+            document.getElementById('detailTitle').style.color = data.color;
+            document.getElementById('detailDesc').textContent = data.desc;
+
+            // 命令列表
+            const commandsHtml = data.commands.map(cmd => `
+                <div class="stage-cmd-item">
+                    <div class="stage-cmd-name">${cmd.name}</div>
+                    <div class="stage-cmd-desc">${cmd.desc}</div>
+                </div>
+            `).join('');
+            document.getElementById('detailCommands').innerHTML = commandsHtml;
+
+            // 示例
+            const examplesHtml = data.examples.map(ex => `
+                <div class="stage-example">${ex}</div>
+            `).join('');
+            document.getElementById('detailExamples').innerHTML = examplesHtml;
+
+            // 小贴士
+            const tipsHtml = data.tips.map(tip => `<li>${tip}</li>`).join('');
+            document.getElementById('detailTipsList').innerHTML = tipsHtml;
+
+            // 更新上下步骤
+            const currentIndex = stageOrder.indexOf(stage);
+            const prevStage = currentIndex > 0 ? stageOrder[currentIndex - 1] : null;
+            const nextStage = currentIndex < stageOrder.length - 1 ? stageOrder[currentIndex + 1] : null;
+
+            prevStageBtn.textContent = prevStage ? `← ${stageData[prevStage]?.title.split('·')[0].trim() || prevStage.toUpperCase()}` : '';
+            prevStageBtn.style.visibility = prevStage ? 'visible' : 'hidden';
+            prevStageBtn.dataset.stage = prevStage || '';
+
+            nextStageBtn.textContent = nextStage ? `${stageData[nextStage]?.title.split('·')[0].trim() || nextStage.toUpperCase()} →` : '';
+            nextStageBtn.style.visibility = nextStage ? 'visible' : 'hidden';
+            nextStageBtn.dataset.stage = nextStage || '';
+        }
+
+        // 选择阶段（纯切换，不关闭）
+        function selectStage(stage) {
+            if (!stage) return;
+
+            // 处理合并的阶段（如 design,assess）
+            const primaryStage = stage.split(',')[0];
+
+            // 切换到新阶段
+            currentSelectedStage = primaryStage;
+            flowNodes.forEach(n => n.classList.remove('selected'));
+
+            // 找到对应节点并高亮
+            const node = document.querySelector(`.flow-node[data-stage*="${primaryStage}"]`);
+            if (node) {
+                node.classList.add('selected');
+            }
+
+            showStageDetail(primaryStage);
+        }
+
+        // 流程节点点击事件
+        flowNodes.forEach(node => {
+            node.addEventListener('click', () => {
+                selectStage(node.dataset.stage);
+            });
+        });
+
+        // 上一步/下一步导航
+        prevStageBtn.addEventListener('click', () => {
+            if (prevStageBtn.dataset.stage) {
+                selectStage(prevStageBtn.dataset.stage);
+            }
+        });
+
+        nextStageBtn.addEventListener('click', () => {
+            if (nextStageBtn.dataset.stage) {
+                selectStage(nextStageBtn.dataset.stage);
+            }
+        });
+
+        // 卡片点击事件
+        cmdCards.forEach(card => {
+            card.addEventListener('click', () => {
+                const stages = (card.dataset.stages || '').split(',');
+                if (stages.length > 0 && stages[0]) {
+                    selectStage(stages[0]);
+                }
+            });
+        });
+
+        // 页面加载时默认选中第一个阶段
+        document.addEventListener('DOMContentLoaded', () => {
+            selectStage('init');
+        });
+    </script>
+</body>
+</html>
