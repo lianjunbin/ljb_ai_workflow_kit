@@ -1,5 +1,13 @@
 ---
 description: "归档提案，复用 OpenSpec 归档机制"
+user-invocable: true
+model: haiku
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Bash
 ---
 
 # /admin:archive - 归档

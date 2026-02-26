@@ -1,0 +1,72 @@
+{
+  "$schema": "./workflow.config.schema.json",
+  "version": "1.5.0",
+  "description": "管理后台 AI 开发工作流配置",
+
+  "modelStrategy": {
+    "active": "claude-balanced",
+    "presets": {
+      "claude-balanced": {
+        "description": "Claude 均衡模式（默认）- 按阶段分配模型",
+        "exploration": "sonnet",
+        "architecture": "opus",
+        "review": "sonnet",
+        "implementation": "opus"
+      },
+      "claude-quality-first": {
+        "description": "Claude 质量优先 - 全程 Opus",
+        "exploration": "opus",
+        "architecture": "opus",
+        "review": "opus",
+        "implementation": "opus"
+      },
+      "claude-cost-optimized": {
+        "description": "Claude 成本优化 - 尽可能用 Sonnet/Haiku",
+        "exploration": "haiku",
+        "architecture": "sonnet",
+        "review": "haiku",
+        "implementation": "sonnet"
+      }
+    }
+  },
+
+  "agentTeams": {
+    "enabled": false,
+    "description": "实验性 Agent Teams 团队协同模式。启用后 DESIGN 和 REVIEW 阶段的多个 agent 可直接通信协作。需要设置环境变量 CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1",
+    "stages": {
+      "design": {
+        "teamLead": "code-architect",
+        "teammates": ["code-explorer"],
+        "maxTeammates": 3
+      },
+      "review": {
+        "teamLead": "code-reviewer",
+        "teammates": ["code-simplifier", "qa-arch-reviewer"],
+        "maxTeammates": 3
+      }
+    }
+  },
+
+  "apifox": {
+    "automationTool": "playwright",
+    "description": "Apifox 接口文档获取配置",
+    "supportedUrlPatterns": [
+      "https://*.apifox.com/apidoc/shared/*",
+      "https://apifox.truesightai.com/apidoc/shared/*",
+      "https://app.apifox.com/project/*/apis/*"
+    ],
+    "markdownDownloadSelector": "以 Markdown 格式下载",
+    "fallbackMethod": "manual"
+  },
+
+  "subagentStrategy": {
+    "description": "子代理启动策略",
+    "complexityThresholds": {
+      "low": { "maxScore": 30, "agents": 1 },
+      "medium": { "maxScore": 70, "agents": 2 },
+      "high": { "maxScore": 100, "agents": 3 }
+    },
+    "isolation": "worktree",
+    "allowBackground": true
+  }
+}

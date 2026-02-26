@@ -1,12 +1,13 @@
 #!/bin/bash
 
 # ============================================================
-# 管理后台 AI 开发工作流 - 卸载脚本 v1.4
+# 管理后台 AI 开发工作流 - 卸载脚本 v1.5
 #
 # 特性：
 # - 基于 manifest 的安全卸载（只删除本工作流安装的文件）
-# - 不影响其他 AI 工具的配置
-# - 支持 v1.4 目录结构（7 阶段精简 + 职能分组）
+# - 命名空间隔离：agents 安装在 admin-workflow/ 子目录下
+# - 不影响其他 AI 工具的配置（绝不删除非本工具的文件）
+# - 向后兼容旧版安装（v1.3/v1.4 扁平结构 + 分组结构）
 # ============================================================
 
 set -e
@@ -24,6 +25,7 @@ NC='\033[0m'
 CLAUDE_CONFIG_DIR="$HOME/.claude"
 SKILLS_DIR="$CLAUDE_CONFIG_DIR/skills"
 AGENTS_DIR="$CLAUDE_CONFIG_DIR/agents"
+AGENTS_WORKFLOW_DIR="$AGENTS_DIR/admin-workflow"  # 命名空间隔离目录
 MANIFEST_FILE="$CLAUDE_CONFIG_DIR/admin-workflow-manifest.txt"
 
 # v1.3 Agent 分组
@@ -41,7 +43,7 @@ print_banner() {
     echo "│    ██║  ██║██████╔╝██║ ╚═╝ ██║██║██║ ╚████║                     │"
     echo "│    ╚═╝  ╚═╝╚═════╝ ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝                     │"
     echo "│                                                                  │"
-    echo "│    🗑️  安全卸载程序 v1.4                                         │"
+    echo "│    🗑️  安全卸载程序 v1.5                                         │"
     echo "│                                                                  │"
     echo "╰──────────────────────────────────────────────────────────────────╯"
     echo -e "${NC}"
@@ -112,11 +114,19 @@ else
     echo -e "    ├── 00-admin.md ~ 07-archive.md"
     echo -e "    └── other/"
     echo ""
-    echo -e "  ${BOLD}Agents（按职能分组）:${NC}"
-    for group in "${AGENT_GROUPS[@]}"; do
-        echo -e "  • $AGENTS_DIR/$group/"
-    done
-    echo -e "  • $AGENTS_DIR/README.md"
+    echo -e "  ${BOLD}Agents（命名空间隔离）:${NC}"
+    if [[ -d "$AGENTS_WORKFLOW_DIR" ]]; then
+        echo -e "  • $AGENTS_WORKFLOW_DIR/"
+        for group in "${AGENT_GROUPS[@]}"; do
+            echo -e "    ├── $group/"
+        done
+    else
+        # 兼容旧版非命名空间安装
+        echo -e "  ${YELLOW}(旧版安装，将只删除已知的 agent 文件)${NC}"
+        for group in "${AGENT_GROUPS[@]}"; do
+            echo -e "  • $AGENTS_DIR/$group/ (仅删除已知文件)"
+        done
+    fi
 fi
 
 echo ""
@@ -174,19 +184,20 @@ if [[ "$USE_MANIFEST" == "true" ]]; then
     for ((i=${#dirs_to_delete[@]}-1; i>=0; i--)); do
         dir="${dirs_to_delete[i]}"
         if [[ -d "$dir" ]]; then
-            # 检查目录是否为空或只包含已删除的文件
+            # 检查目录是否为空
             if [[ -z "$(ls -A "$dir" 2>/dev/null)" ]]; then
                 rmdir "$dir"
-                log_success "删除目录 $dir"
+                log_success "删除空目录 $dir"
                 deleted_count=$((deleted_count + 1))
             else
-                # 目录非空，强制删除（如果是工作流目录）
-                if [[ "$dir" == *"admin-workflow"* ]] || [[ "$dir" == *"/agents/"* ]]; then
+                # 仅对 admin-workflow 命名空间内的目录执行强制删除
+                # 绝不删除通用目录（如 agents/、skills/），避免影响其他工具
+                if [[ "$dir" == *"/admin-workflow"* ]]; then
                     rm -rf "$dir"
                     log_success "删除目录 $dir"
                     deleted_count=$((deleted_count + 1))
                 else
-                    log_warning "目录非空，跳过: $dir"
+                    log_warning "目录非空，跳过（可能包含其他工具文件）: $dir"
                 fi
             fi
         fi
@@ -226,26 +237,37 @@ else
         fi
     done
 
-    echo -e "${YELLOW}[2/3]${NC} ${BOLD}删除 Agents（按分组）...${NC}"
+    echo -e "${YELLOW}[2/3]${NC} ${BOLD}删除 Agents...${NC}"
 
-    # 删除分组目录
-    for group in "${AGENT_GROUPS[@]}"; do
-        if [ -d "$AGENTS_DIR/$group" ]; then
-            rm -rf "$AGENTS_DIR/$group"
-            log_success "删除 agents/$group/"
-        else
-            log_info "agents/$group/ 不存在，跳过"
+    # 优先删除命名空间目录（v1.5+ 安装方式，安全删除）
+    if [ -d "$AGENTS_WORKFLOW_DIR" ]; then
+        rm -rf "$AGENTS_WORKFLOW_DIR"
+        log_success "删除 agents/admin-workflow/ (命名空间目录)"
+    else
+        log_info "agents/admin-workflow/ 不存在"
+    fi
+
+    # 兼容旧版本（v1.3~v1.4）：逐文件删除分组目录中的已知 agent 文件
+    # 重要：不使用 rm -rf 删除整个分组目录，避免误删其他工具的文件
+    KNOWN_AGENTS=(
+        "design/code-architect.md"
+        "explore/code-explorer.md"
+        "audit/impact-analyzer.md"
+        "audit/qa-arch-reviewer.md"
+        "audit/qa-security-reviewer.md"
+        "review/code-reviewer.md"
+        "review/code-simplifier.md"
+    )
+
+    for agent_path in "${KNOWN_AGENTS[@]}"; do
+        if [ -f "$AGENTS_DIR/$agent_path" ]; then
+            rm "$AGENTS_DIR/$agent_path"
+            log_success "删除旧版 $agent_path"
         fi
     done
 
-    # 删除 agents README
-    if [ -f "$AGENTS_DIR/README.md" ]; then
-        rm "$AGENTS_DIR/README.md"
-        log_success "删除 agents/README.md"
-    fi
-
-    # 兼容旧版本：删除扁平结构的 agent 文件
-    OLD_AGENTS=(
+    # 兼容更早版本：删除扁平结构的 agent 文件
+    OLD_FLAT_AGENTS=(
         "code-explorer.md"
         "code-architect.md"
         "code-reviewer.md"
@@ -255,10 +277,24 @@ else
         "qa-security-reviewer.md"
     )
 
-    for agent in "${OLD_AGENTS[@]}"; do
+    for agent in "${OLD_FLAT_AGENTS[@]}"; do
         if [ -f "$AGENTS_DIR/$agent" ]; then
             rm "$AGENTS_DIR/$agent"
-            log_success "删除旧版 $agent"
+            log_success "删除旧版(扁平) $agent"
+        fi
+    done
+
+    # 删除旧版 README（仅在 agents/ 根目录下的）
+    if [ -f "$AGENTS_DIR/README.md" ]; then
+        rm "$AGENTS_DIR/README.md"
+        log_success "删除 agents/README.md"
+    fi
+
+    # 清理空的旧版分组目录（仅当目录为空时才删除）
+    for group in "${AGENT_GROUPS[@]}"; do
+        if [ -d "$AGENTS_DIR/$group" ] && [ -z "$(ls -A "$AGENTS_DIR/$group" 2>/dev/null)" ]; then
+            rmdir "$AGENTS_DIR/$group"
+            log_success "清理空目录 agents/$group/"
         fi
     done
 

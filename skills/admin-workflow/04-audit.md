@@ -1,5 +1,13 @@
 ---
 description: "提案审阅 - 影响范围分析 + 代码逻辑预览（可多轮迭代）"
+user-invocable: true
+model: opus
+allowed-tools:
+  - Read
+  - Glob
+  - Grep
+  - Bash
+  - Task
 ---
 
 # /admin:audit - 提案审阅

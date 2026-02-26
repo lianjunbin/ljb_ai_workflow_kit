@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  管理后台 AI 开发工作流 - 安装器 v1.4
+#  管理后台 AI 开发工作流 - 安装器 v1.5
 #
 #  从 Jira 需求到代码交付，AI 全程协助
 #  支持本地安装和远程安装
 #
-#  目录结构（v1.4 更新）:
+#  目录结构（v1.5 更新 - 命名空间隔离）:
 #  ├── skills/admin-workflow/
 #  │   ├── 00-admin.md ~ 07-archive.md  (7 阶段核心工作流)
 #  │   └── other/                        (辅助文件)
-#  └── agents/
+#  └── agents/admin-workflow/            (命名空间隔离，不影响其他工具)
 #      ├── design/    (设计类)
 #      ├── explore/   (探索类)
 #      ├── audit/     (审计类)
@@ -23,7 +23,7 @@ set -e
 # 配置
 # ─────────────────────────────────────────────────────────────────────────────
 
-VERSION="1.4.0"
+VERSION="1.5.0"
 REPO_URL="https://github.com/lianjunbin/ljb_ai_workflow_kit"
 REPO_RAW_URL="https://raw.githubusercontent.com/lianjunbin/ljb_ai_workflow_kit/main"
 
@@ -31,6 +31,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || SCRIPT
 CLAUDE_DIR="$HOME/.claude"
 SKILLS_DIR="$CLAUDE_DIR/skills"
 AGENTS_DIR="$CLAUDE_DIR/agents"
+AGENTS_WORKFLOW_DIR="$AGENTS_DIR/admin-workflow"  # 命名空间隔离，避免与其他工具冲突
 MCP_CONFIG="$CLAUDE_DIR/.mcp.json"
 MANIFEST_FILE="$CLAUDE_DIR/admin-workflow-manifest.txt"
 BACKUP_SUFFIX="backup.$(date +%Y%m%d%H%M%S)"
@@ -216,12 +217,12 @@ download_files() {
 
     print_step "创建临时目录: $TEMP_DIR"
 
-    # 创建目录结构
+    # 创建目录结构（agents 使用命名空间隔离）
     mkdir -p "$TEMP_DIR/skills/admin-workflow/other"
-    mkdir -p "$TEMP_DIR/agents/design"
-    mkdir -p "$TEMP_DIR/agents/explore"
-    mkdir -p "$TEMP_DIR/agents/audit"
-    mkdir -p "$TEMP_DIR/agents/review"
+    mkdir -p "$TEMP_DIR/agents/admin-workflow/design"
+    mkdir -p "$TEMP_DIR/agents/admin-workflow/explore"
+    mkdir -p "$TEMP_DIR/agents/admin-workflow/audit"
+    mkdir -p "$TEMP_DIR/agents/admin-workflow/review"
 
     print_step "下载核心 Skills 文件..."
     for file in "${CORE_SKILL_FILES[@]}"; do
@@ -246,7 +247,7 @@ download_files() {
     print_step "下载 Agents 文件..."
     for group in "${!AGENT_GROUPS[@]}"; do
         for file in ${AGENT_GROUPS[$group]}; do
-            if curl -fsSL "$REPO_RAW_URL/agents/$group/$file" -o "$TEMP_DIR/agents/$group/$file" 2>/dev/null; then
+            if curl -fsSL "$REPO_RAW_URL/agents/$group/$file" -o "$TEMP_DIR/agents/admin-workflow/$group/$file" 2>/dev/null; then
                 echo -e "    ${GREEN}✓${NC} $group/$file"
             else
                 print_error "下载失败: $group/$file"
@@ -256,7 +257,7 @@ download_files() {
     done
 
     # 下载 agents README
-    if curl -fsSL "$REPO_RAW_URL/agents/README.md" -o "$TEMP_DIR/agents/README.md" 2>/dev/null; then
+    if curl -fsSL "$REPO_RAW_URL/agents/README.md" -o "$TEMP_DIR/agents/admin-workflow/README.md" 2>/dev/null; then
         echo -e "    ${GREEN}✓${NC} agents/README.md"
     fi
 
@@ -552,17 +553,25 @@ install_files() {
             print_success "已安装 $skill_count 个 Skill 文件"
         fi
 
-        # 安装 Agents（按职能分组）
-        print_step "安装 Agents（按职能分组）..."
+        # 安装 Agents（命名空间隔离：~/.claude/agents/admin-workflow/）
+        print_step "安装 Agents（命名空间隔离）..."
         local agent_count=0
 
+        # 创建命名空间根目录
+        mkdir -p "$AGENTS_WORKFLOW_DIR"
+        record_file "$AGENTS_WORKFLOW_DIR"
+
         for group in "${!AGENT_GROUPS[@]}"; do
-            local group_dir="$AGENTS_DIR/$group"
+            local group_dir="$AGENTS_WORKFLOW_DIR/$group"
             mkdir -p "$group_dir"
             record_file "$group_dir"
 
             for file in ${AGENT_GROUPS[$group]}; do
+                # 本地安装时源文件在 agents/$group/，远程安装时在 agents/admin-workflow/$group/
                 local src="$SOURCE_DIR/agents/$group/$file"
+                if [[ ! -f "$src" ]]; then
+                    src="$SOURCE_DIR/agents/admin-workflow/$group/$file"
+                fi
                 if [[ -f "$src" ]]; then
                     cp "$src" "$group_dir/"
                     record_file "$group_dir/$file"
@@ -572,9 +581,13 @@ install_files() {
         done
 
         # 安装 agents README
-        if [[ -f "$SOURCE_DIR/agents/README.md" ]]; then
-            cp "$SOURCE_DIR/agents/README.md" "$AGENTS_DIR/"
-            record_file "$AGENTS_DIR/README.md"
+        local readme_src="$SOURCE_DIR/agents/README.md"
+        if [[ ! -f "$readme_src" ]]; then
+            readme_src="$SOURCE_DIR/agents/admin-workflow/README.md"
+        fi
+        if [[ -f "$readme_src" ]]; then
+            cp "$readme_src" "$AGENTS_WORKFLOW_DIR/"
+            record_file "$AGENTS_WORKFLOW_DIR/README.md"
         fi
 
         print_success "已安装 $agent_count 个 Agent 文件（4 个分组）"
@@ -618,16 +631,16 @@ verify_installation() {
         fi
     done
 
-    # 验证 Agents（按分组）
+    # 验证 Agents（命名空间隔离）
     echo ""
-    echo -e "  ${BOLD}验证 Agents（按职能分组）:${NC}"
+    echo -e "  ${BOLD}验证 Agents（admin-workflow 命名空间）:${NC}"
 
     for group in "${!AGENT_GROUPS[@]}"; do
         for file in ${AGENT_GROUPS[$group]}; do
-            if [[ -f "$AGENTS_DIR/$group/$file" ]]; then
-                print_success "$group/$file"
+            if [[ -f "$AGENTS_WORKFLOW_DIR/$group/$file" ]]; then
+                print_success "admin-workflow/$group/$file"
             else
-                print_error "$group/$file 未找到"
+                print_error "admin-workflow/$group/$file 未找到"
                 all_ok=false
             fi
         done
@@ -677,14 +690,14 @@ print_summary() {
         fi
     fi
 
-    echo -e "  ${BOLD}目录结构（v1.4）:${NC}"
+    echo -e "  ${BOLD}目录结构（v1.5）:${NC}"
     echo ""
     echo "    ┌──────────────────────────────────────────────────────────────────┐"
     echo "    │  ~/.claude/skills/admin-workflow/                                │"
     echo "    │  ├── 00-admin.md ~ 07-archive.md   7 阶段核心工作流             │"
     echo "    │  └── other/                        辅助文件                     │"
     echo "    │                                                                  │"
-    echo "    │  ~/.claude/agents/                                               │"
+    echo "    │  ~/.claude/agents/admin-workflow/   (命名空间隔离)               │"
     echo "    │  ├── design/    code-architect     (DESIGN 阶段)                │"
     echo "    │  ├── explore/   code-explorer      (START 阶段)                 │"
     echo "    │  ├── audit/     impact-analyzer... (AUDIT 阶段)                 │"

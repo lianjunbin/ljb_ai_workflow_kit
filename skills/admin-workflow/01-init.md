@@ -1,5 +1,14 @@
 ---
 description: "初始化项目的 OpenSpec 结构和工作流配置"
+user-invocable: true
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Grep
+  - Bash
+  - Task
 ---
 
 # /admin:init - 项目初始化

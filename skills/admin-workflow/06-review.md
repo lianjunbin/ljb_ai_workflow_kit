@@ -1,5 +1,14 @@
 ---
 description: "代码走读：更新任务状态 + 逐文件走读 + Git 提交建议（仅本次改动，支持多轮迭代）"
+user-invocable: true
+model: sonnet
+allowed-tools:
+  - Read
+  - Glob
+  - Grep
+  - Bash
+  - Task
+  - Edit
 ---
 
 # /admin:review - 代码走读

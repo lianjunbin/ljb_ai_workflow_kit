@@ -1,5 +1,15 @@
 ---
 description: "逐任务应用代码改动（可暂停、可选择性回滚）"
+user-invocable: true
+model: opus
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Grep
+  - Bash
+  - Task
 ---
 
 # /admin:apply - 应用代码
@@ -257,9 +267,9 @@ description: "逐任务应用代码改动（可暂停、可选择性回滚）"
 
 💬 接下来怎么做？
 
-   👉 输入: /admin:end
+   👉 输入: /admin:review
 
-   进行代码走查（审查 + 简化 + Git 建议）
+   进行代码走读（审查 + 简化 + Git 建议）
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⌨️ 快捷提示：输入 /admin 随时查看工作流全貌

@@ -1,0 +1,125 @@
+{
+  "name": "admin-workflow",
+  "displayName": "管理后台 AI 开发工作流",
+  "version": "1.5.0",
+  "description": "从 Jira 需求到代码交付的 AI 全程协助工作流，支持多代理协同、OpenSpec 提案、智能复杂度评估",
+  "author": "lianjunbin",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lianjunbin/ljb_ai_workflow_kit"
+  },
+  "keywords": [
+    "workflow",
+    "openspec",
+    "jira",
+    "apifox",
+    "subagent",
+    "agent-teams",
+    "admin",
+    "frontend",
+    "vue",
+    "tsx"
+  ],
+  "commands": {
+    "admin": {
+      "path": "skills/admin-workflow/00-admin.md",
+      "description": "显示工作流总览和快速开始指南"
+    },
+    "admin:init": {
+      "path": "skills/admin-workflow/01-init.md",
+      "description": "初始化项目的 OpenSpec 结构和工作流配置"
+    },
+    "admin:start": {
+      "path": "skills/admin-workflow/02-start.md",
+      "description": "需求准备 - Jira 获取或直接描述 + API 文档收集 + 业务分析"
+    },
+    "admin:design": {
+      "path": "skills/admin-workflow/03-design.md",
+      "description": "智能评估 + 多方案架构设计（支持 Agent Teams 团队模式）"
+    },
+    "admin:audit": {
+      "path": "skills/admin-workflow/04-audit.md",
+      "description": "提案审阅 - 影响分析 + 代码逻辑预览"
+    },
+    "admin:apply": {
+      "path": "skills/admin-workflow/05-apply.md",
+      "description": "逐任务应用代码改动（可暂停、可回滚）"
+    },
+    "admin:review": {
+      "path": "skills/admin-workflow/06-review.md",
+      "description": "代码走读 + Git 提交建议"
+    },
+    "admin:archive": {
+      "path": "skills/admin-workflow/07-archive.md",
+      "description": "归档提案到 OpenSpec archive"
+    }
+  },
+  "agents": {
+    "code-explorer": {
+      "path": "agents/admin-workflow/explore/code-explorer.md",
+      "description": "代码库探索和模式识别"
+    },
+    "code-architect": {
+      "path": "agents/admin-workflow/design/code-architect.md",
+      "description": "架构设计和方案对比"
+    },
+    "impact-analyzer": {
+      "path": "agents/admin-workflow/audit/impact-analyzer.md",
+      "description": "影响范围分析"
+    },
+    "qa-arch-reviewer": {
+      "path": "agents/admin-workflow/audit/qa-arch-reviewer.md",
+      "description": "架构质量审查"
+    },
+    "qa-security-reviewer": {
+      "path": "agents/admin-workflow/audit/qa-security-reviewer.md",
+      "description": "安全漏洞审查"
+    },
+    "code-reviewer": {
+      "path": "agents/admin-workflow/review/code-reviewer.md",
+      "description": "代码质量审查"
+    },
+    "code-simplifier": {
+      "path": "agents/admin-workflow/review/code-simplifier.md",
+      "description": "增量代码简化"
+    }
+  },
+  "dependencies": {
+    "optional": {
+      "jira": {
+        "description": "从 Jira 拉取需求（/admin:start 阶段）",
+        "mcp": "mcp__jira"
+      },
+      "playwright": {
+        "description": "Apifox 接口文档自动获取（/admin:start 阶段）",
+        "mcp": "mcp__Playwright"
+      },
+      "chrome-devtools": {
+        "description": "Apifox 接口文档自动获取（备选）",
+        "mcp": "mcp__chrome-devtools"
+      },
+      "context7": {
+        "description": "增强的文档查询",
+        "mcp": "mcp__context7"
+      },
+      "serena": {
+        "description": "语义代码分析",
+        "mcp": "mcp__serena"
+      }
+    }
+  },
+  "modelStrategy": {
+    "description": "不同阶段推荐使用的模型",
+    "stages": {
+      "admin": { "model": "haiku", "reason": "仅展示信息" },
+      "init": { "model": "sonnet", "reason": "项目检测和配置" },
+      "start": { "model": "sonnet", "reason": "信息收集和探索" },
+      "design": { "model": "opus", "reason": "架构设计需要强推理" },
+      "audit": { "model": "opus", "reason": "深度分析" },
+      "apply": { "model": "opus", "reason": "代码生成" },
+      "review": { "model": "sonnet", "reason": "检查清单驱动" },
+      "archive": { "model": "haiku", "reason": "简单文件操作" }
+    }
+  }
+}

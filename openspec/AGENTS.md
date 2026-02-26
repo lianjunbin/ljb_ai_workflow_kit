@@ -1,22 +1,50 @@
 # AI 开发代理配置
 
 > **项目**: ljb_ai_workflow_kit
-> **版本**: 1.4.0
-> **更新日期**: 2026-02-11
+> **版本**: 1.5.0
+> **更新日期**: 2026-02-26
 
 ---
 
 ## 代理总览
 
-| 代理 | 目录 | 使用阶段 | 职责 |
-|------|------|----------|------|
-| code-explorer | explore/ | START | 代码库探索和模式识别 |
-| code-architect | design/ | DESIGN | 架构设计和方案对比 |
-| impact-analyzer | audit/ | AUDIT | 影响范围分析、风险评估 |
-| qa-arch-reviewer | audit/ | AUDIT | 架构质量审查 |
-| qa-security-reviewer | audit/ | AUDIT | 安全漏洞审查 |
-| code-reviewer | review/ | REVIEW | 代码质量审查 |
-| code-simplifier | review/ | REVIEW | 增量代码简化 |
+| 代理 | 目录 | 使用阶段 | 职责 | 推荐模型 |
+|------|------|----------|------|----------|
+| code-explorer | admin-workflow/explore/ | START | 代码库探索和模式识别 | sonnet |
+| code-architect | admin-workflow/design/ | DESIGN | 架构设计和方案对比 | opus |
+| impact-analyzer | admin-workflow/audit/ | AUDIT | 影响范围分析、风险评估 | sonnet |
+| qa-arch-reviewer | admin-workflow/audit/ | AUDIT | 架构质量审查 | opus |
+| qa-security-reviewer | admin-workflow/audit/ | AUDIT | 安全漏洞审查 | opus |
+| code-reviewer | admin-workflow/review/ | REVIEW | 代码质量审查 | sonnet |
+| code-simplifier | admin-workflow/review/ | REVIEW | 增量代码简化 | sonnet |
+
+> **目录说明**: v1.5 起，所有代理文件安装在 `~/.claude/agents/admin-workflow/` 命名空间下，避免与其他工具冲突。
+
+---
+
+## Agent Teams 团队模式（实验性）
+
+> **前提条件**: 设置环境变量 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
+
+Agent Teams 允许多个代理之间**直接通信**，而不仅仅是各自向主会话报告。适合需要协调的复杂设计场景。
+
+### DESIGN 阶段团队配置
+
+| 角色 | 代理 | 职责 |
+|------|------|------|
+| Team Lead | code-architect | 协调设计方向，整合约束 |
+| Teammate | code-architect | 设计具体方案 |
+| Teammate | code-explorer | 探索代码库，发现隐含约束 |
+
+### REVIEW 阶段团队配置
+
+| 角色 | 代理 | 职责 |
+|------|------|------|
+| Team Lead | code-reviewer | 协调审查结果 |
+| Teammate | code-simplifier | DRY/KISS/YAGNI 检查 |
+| Teammate | qa-arch-reviewer | 架构一致性检查 |
+
+配置文件: `openspec/workflow.config.json` → `agentTeams`
 
 ---
 
