@@ -74,13 +74,19 @@ OTHER_SKILL_FILES=(
     "style-guide.md"
 )
 
-# Agents（按职能分组）
-declare -A AGENT_GROUPS=(
-    ["design"]="code-architect.md"
-    ["explore"]="code-explorer.md"
-    ["audit"]="impact-analyzer.md qa-arch-reviewer.md qa-security-reviewer.md"
-    ["review"]="code-reviewer.md code-simplifier.md"
-)
+# Agents（按职能分组，兼容 Bash 3.x，不使用关联数组）
+AGENT_GROUP_NAMES=("design" "explore" "audit" "review")
+AGENT_GROUP_FILES_design="code-architect.md"
+AGENT_GROUP_FILES_explore="code-explorer.md"
+AGENT_GROUP_FILES_audit="impact-analyzer.md qa-arch-reviewer.md qa-security-reviewer.md"
+AGENT_GROUP_FILES_review="code-reviewer.md code-simplifier.md"
+
+# 获取分组文件列表的辅助函数
+get_agent_files() {
+    local group="$1"
+    local var="AGENT_GROUP_FILES_${group}"
+    echo "${!var}"
+}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 辅助函数
@@ -245,8 +251,8 @@ download_files() {
     done
 
     print_step "下载 Agents 文件..."
-    for group in "${!AGENT_GROUPS[@]}"; do
-        for file in ${AGENT_GROUPS[$group]}; do
+    for group in "${AGENT_GROUP_NAMES[@]}"; do
+        for file in $(get_agent_files "$group"); do
             if curl -fsSL "$REPO_RAW_URL/agents/$group/$file" -o "$TEMP_DIR/agents/admin-workflow/$group/$file" 2>/dev/null; then
                 echo -e "    ${GREEN}✓${NC} $group/$file"
             else
@@ -561,12 +567,12 @@ install_files() {
         mkdir -p "$AGENTS_WORKFLOW_DIR"
         record_file "$AGENTS_WORKFLOW_DIR"
 
-        for group in "${!AGENT_GROUPS[@]}"; do
+        for group in "${AGENT_GROUP_NAMES[@]}"; do
             local group_dir="$AGENTS_WORKFLOW_DIR/$group"
             mkdir -p "$group_dir"
             record_file "$group_dir"
 
-            for file in ${AGENT_GROUPS[$group]}; do
+            for file in $(get_agent_files "$group"); do
                 # 本地安装时源文件在 agents/$group/，远程安装时在 agents/admin-workflow/$group/
                 local src="$SOURCE_DIR/agents/$group/$file"
                 if [[ ! -f "$src" ]]; then
@@ -635,8 +641,8 @@ verify_installation() {
     echo ""
     echo -e "  ${BOLD}验证 Agents（admin-workflow 命名空间）:${NC}"
 
-    for group in "${!AGENT_GROUPS[@]}"; do
-        for file in ${AGENT_GROUPS[$group]}; do
+    for group in "${AGENT_GROUP_NAMES[@]}"; do
+        for file in $(get_agent_files "$group"); do
             if [[ -f "$AGENTS_WORKFLOW_DIR/$group/$file" ]]; then
                 print_success "admin-workflow/$group/$file"
             else
