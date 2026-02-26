@@ -1,13 +1,14 @@
 #!/bin/bash
 
 # ============================================================
-# 管理后台 AI 开发工作流 - 卸载脚本 v1.5
+# 管理后台 AI 开发工作流 - 卸载脚本 v1.6
 #
 # 特性：
 # - 基于 manifest 的安全卸载（只删除本工作流安装的文件）
 # - 命名空间隔离：agents 安装在 admin-workflow/ 子目录下
+# - commands 清理：删除 commands/admin/ 斜杠命令目录
 # - 不影响其他 AI 工具的配置（绝不删除非本工具的文件）
-# - 向后兼容旧版安装（v1.3/v1.4 扁平结构 + 分组结构）
+# - 向后兼容旧版安装（v1.3/v1.4/v1.5 扁平结构 + 分组结构）
 # ============================================================
 
 set -e
@@ -26,6 +27,8 @@ CLAUDE_CONFIG_DIR="$HOME/.claude"
 SKILLS_DIR="$CLAUDE_CONFIG_DIR/skills"
 AGENTS_DIR="$CLAUDE_CONFIG_DIR/agents"
 AGENTS_WORKFLOW_DIR="$AGENTS_DIR/admin-workflow"  # 命名空间隔离目录
+COMMANDS_DIR="$CLAUDE_CONFIG_DIR/commands"
+COMMANDS_ADMIN_DIR="$COMMANDS_DIR/admin"  # /admin:* 斜杠命令目录
 MANIFEST_FILE="$CLAUDE_CONFIG_DIR/admin-workflow-manifest.txt"
 
 # v1.3 Agent 分组
@@ -43,7 +46,7 @@ print_banner() {
     echo "│    ██║  ██║██████╔╝██║ ╚═╝ ██║██║██║ ╚████║                     │"
     echo "│    ╚═╝  ╚═╝╚═════╝ ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝                     │"
     echo "│                                                                  │"
-    echo "│    🗑️  安全卸载程序 v1.5                                         │"
+    echo "│    🗑️  安全卸载程序 v1.6                                         │"
     echo "│                                                                  │"
     echo "╰──────────────────────────────────────────────────────────────────╯"
     echo -e "${NC}"
@@ -109,6 +112,13 @@ if [[ "$USE_MANIFEST" == "true" ]]; then
     echo ""
     echo -e "  ${BOLD}共 $file_count 个文件/目录${NC}"
 else
+    echo -e "  ${BOLD}Commands（/admin:* 斜杠命令）:${NC}"
+    if [[ -d "$COMMANDS_ADMIN_DIR" ]]; then
+        echo -e "  • $COMMANDS_ADMIN_DIR/"
+    else
+        echo -e "  ${YELLOW}(未检测到 commands/admin/ 目录)${NC}"
+    fi
+    echo ""
     echo -e "  ${BOLD}Skills（v1.4 目录结构）:${NC}"
     echo -e "  • $SKILLS_DIR/admin-workflow/"
     echo -e "    ├── 00-admin.md ~ 07-archive.md"
@@ -190,9 +200,9 @@ if [[ "$USE_MANIFEST" == "true" ]]; then
                 log_success "删除空目录 $dir"
                 deleted_count=$((deleted_count + 1))
             else
-                # 仅对 admin-workflow 命名空间内的目录执行强制删除
-                # 绝不删除通用目录（如 agents/、skills/），避免影响其他工具
-                if [[ "$dir" == *"/admin-workflow"* ]]; then
+                # 仅对 admin-workflow 或 commands/admin 命名空间内的目录执行强制删除
+                # 绝不删除通用目录（如 agents/、skills/、commands/），避免影响其他工具
+                if [[ "$dir" == *"/admin-workflow"* ]] || [[ "$dir" == *"/commands/admin"* ]]; then
                     rm -rf "$dir"
                     log_success "删除目录 $dir"
                     deleted_count=$((deleted_count + 1))
@@ -219,8 +229,17 @@ if [[ "$USE_MANIFEST" == "true" ]]; then
     fi
 
 else
-    # 传统卸载模式（v1.3 目录结构）
-    echo -e "${YELLOW}[1/3]${NC} ${BOLD}删除 Skills...${NC}"
+    # 传统卸载模式（v1.6 目录结构）
+    echo -e "${YELLOW}[1/4]${NC} ${BOLD}删除 Commands（/admin:* 斜杠命令）...${NC}"
+
+    if [ -d "$COMMANDS_ADMIN_DIR" ]; then
+        rm -rf "$COMMANDS_ADMIN_DIR"
+        log_success "删除 commands/admin/ (斜杠命令目录)"
+    else
+        log_info "commands/admin/ 不存在，跳过"
+    fi
+
+    echo -e "${YELLOW}[2/4]${NC} ${BOLD}删除 Skills...${NC}"
 
     if [ -d "$SKILLS_DIR/admin-workflow" ]; then
         rm -rf "$SKILLS_DIR/admin-workflow"
@@ -237,7 +256,7 @@ else
         fi
     done
 
-    echo -e "${YELLOW}[2/3]${NC} ${BOLD}删除 Agents...${NC}"
+    echo -e "${YELLOW}[3/4]${NC} ${BOLD}删除 Agents...${NC}"
 
     # 优先删除命名空间目录（v1.5+ 安装方式，安全删除）
     if [ -d "$AGENTS_WORKFLOW_DIR" ]; then
@@ -298,7 +317,7 @@ else
         fi
     done
 
-    echo -e "${YELLOW}[3/3]${NC} ${BOLD}清理完成${NC}"
+    echo -e "${YELLOW}[4/4]${NC} ${BOLD}清理完成${NC}"
 fi
 
 echo ""

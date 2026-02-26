@@ -1,12 +1,14 @@
 #!/bin/bash
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  管理后台 AI 开发工作流 - 安装器 v1.5
+#  管理后台 AI 开发工作流 - 安装器 v1.6
 #
 #  从 Jira 需求到代码交付，AI 全程协助
 #  支持本地安装和远程安装
 #
-#  目录结构（v1.5 更新 - 命名空间隔离）:
+#  目录结构（v1.6 更新 - 新增 commands 支持 /admin 斜杠命令）:
+#  ├── commands/admin/                   (/admin:* 斜杠命令，输入 /admin 即可补全)
+#  │   ├── admin.md ~ archive.md         (8 个斜杠命令)
 #  ├── skills/admin-workflow/
 #  │   ├── 00-admin.md ~ 07-archive.md  (7 阶段核心工作流)
 #  │   └── other/                        (辅助文件)
@@ -23,7 +25,7 @@ set -e
 # 配置
 # ─────────────────────────────────────────────────────────────────────────────
 
-VERSION="1.5.0"
+VERSION="1.6.0"
 REPO_URL="https://github.com/lianjunbin/ljb_ai_workflow_kit"
 REPO_RAW_URL="https://raw.githubusercontent.com/lianjunbin/ljb_ai_workflow_kit/main"
 
@@ -32,6 +34,8 @@ CLAUDE_DIR="$HOME/.claude"
 SKILLS_DIR="$CLAUDE_DIR/skills"
 AGENTS_DIR="$CLAUDE_DIR/agents"
 AGENTS_WORKFLOW_DIR="$AGENTS_DIR/admin-workflow"  # 命名空间隔离，避免与其他工具冲突
+COMMANDS_DIR="$CLAUDE_DIR/commands"
+COMMANDS_ADMIN_DIR="$COMMANDS_DIR/admin"  # /admin:* 斜杠命令注册目录
 MCP_CONFIG="$CLAUDE_DIR/.mcp.json"
 MANIFEST_FILE="$CLAUDE_DIR/admin-workflow-manifest.txt"
 BACKUP_SUFFIX="backup.$(date +%Y%m%d%H%M%S)"
@@ -52,7 +56,7 @@ NC='\033[0m'
 BOLD='\033[1m'
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 文件列表（v1.3 更新：按新目录结构）
+# 文件列表（v1.6 更新：新增 commands 目录）
 # ─────────────────────────────────────────────────────────────────────────────
 
 # 核心工作流 Skills（7 阶段，按顺序）
@@ -66,6 +70,18 @@ CORE_SKILL_FILES=(
     "06-review.md"
     "07-archive.md"
     "README.md"
+)
+
+# 斜杠命令文件（安装到 ~/.claude/commands/admin/，注册 /admin:* 命令）
+CORE_COMMAND_FILES=(
+    "admin.md"
+    "init.md"
+    "start.md"
+    "design.md"
+    "audit.md"
+    "apply.md"
+    "review.md"
+    "archive.md"
 )
 
 # 辅助文件（放在 other/ 子目录）
@@ -225,6 +241,7 @@ download_files() {
 
     # 创建目录结构（agents 使用命名空间隔离）
     mkdir -p "$TEMP_DIR/skills/admin-workflow/other"
+    mkdir -p "$TEMP_DIR/commands/admin"
     mkdir -p "$TEMP_DIR/agents/admin-workflow/design"
     mkdir -p "$TEMP_DIR/agents/admin-workflow/explore"
     mkdir -p "$TEMP_DIR/agents/admin-workflow/audit"
@@ -246,6 +263,16 @@ download_files() {
             echo -e "    ${GREEN}✓${NC} other/$file"
         else
             print_error "下载失败: other/$file"
+            exit 1
+        fi
+    done
+
+    print_step "下载 Commands 文件（/admin:* 斜杠命令）..."
+    for file in "${CORE_COMMAND_FILES[@]}"; do
+        if curl -fsSL "$REPO_RAW_URL/commands/admin/$file" -o "$TEMP_DIR/commands/admin/$file" 2>/dev/null; then
+            echo -e "    ${GREEN}✓${NC} commands/admin/$file"
+        else
+            print_error "下载失败: commands/admin/$file"
             exit 1
         fi
     done
@@ -350,6 +377,7 @@ check_environment() {
     # 创建必要目录
     mkdir -p "$SKILLS_DIR"
     mkdir -p "$AGENTS_DIR"
+    mkdir -p "$COMMANDS_DIR"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -597,6 +625,23 @@ install_files() {
         fi
 
         print_success "已安装 $agent_count 个 Agent 文件（4 个分组）"
+
+        # 安装 Commands（注册 /admin:* 斜杠命令）
+        print_step "安装 Commands（/admin:* 斜杠命令）..."
+        mkdir -p "$COMMANDS_ADMIN_DIR"
+        record_file "$COMMANDS_ADMIN_DIR"
+
+        local cmd_count=0
+        for file in "${CORE_COMMAND_FILES[@]}"; do
+            local src="$SOURCE_DIR/commands/admin/$file"
+            if [[ -f "$src" ]]; then
+                cp "$src" "$COMMANDS_ADMIN_DIR/"
+                record_file "$COMMANDS_ADMIN_DIR/$file"
+                cmd_count=$((cmd_count + 1))
+            fi
+        done
+
+        print_success "已安装 $cmd_count 个 Command 文件（输入 /admin 即可使用）"
     fi
 
     # 记录 manifest 文件本身
@@ -631,6 +676,31 @@ verify_installation() {
         local cmd="${item##*:}"
         if [[ -f "$SKILLS_DIR/admin-workflow/$file.md" ]]; then
             print_success "/admin:$cmd → $file.md"
+        else
+            print_error "/admin:$cmd 未找到"
+            all_ok=false
+        fi
+    done
+
+    # 验证 Commands（/admin:* 斜杠命令）
+    echo ""
+    echo -e "  ${BOLD}验证 Commands（/admin:* 斜杠命令）:${NC}"
+    local cmd_map=(
+        "admin:admin"
+        "init:init"
+        "start:start"
+        "design:design"
+        "audit:audit"
+        "apply:apply"
+        "review:review"
+        "archive:archive"
+    )
+
+    for item in "${cmd_map[@]}"; do
+        local file="${item%%:*}"
+        local cmd="${item##*:}"
+        if [[ -f "$COMMANDS_ADMIN_DIR/$file.md" ]]; then
+            print_success "/admin:$cmd → commands/admin/$file.md"
         else
             print_error "/admin:$cmd 未找到"
             all_ok=false
@@ -696,14 +766,18 @@ print_summary() {
         fi
     fi
 
-    echo -e "  ${BOLD}目录结构（v1.5）:${NC}"
+    echo -e "  ${BOLD}目录结构（v1.6）:${NC}"
     echo ""
     echo "    ┌──────────────────────────────────────────────────────────────────┐"
-    echo "    │  ~/.claude/skills/admin-workflow/                                │"
+    echo "    │  ~/.claude/commands/admin/          (/admin:* 斜杠命令)         │"
+    echo "    │  ├── admin.md ~ archive.md         8 个斜杠命令                │"
+    echo "    │  └── 输入 /admin 即可看到所有命令                               │"
+    echo "    │                                                                  │"
+    echo "    │  ~/.claude/skills/admin-workflow/   (Skill 定义)                │"
     echo "    │  ├── 00-admin.md ~ 07-archive.md   7 阶段核心工作流             │"
     echo "    │  └── other/                        辅助文件                     │"
     echo "    │                                                                  │"
-    echo "    │  ~/.claude/agents/admin-workflow/   (命名空间隔离)               │"
+    echo "    │  ~/.claude/agents/admin-workflow/   (Agent 命名空间隔离)        │"
     echo "    │  ├── design/    code-architect     (DESIGN 阶段)                │"
     echo "    │  ├── explore/   code-explorer      (START 阶段)                 │"
     echo "    │  ├── audit/     impact-analyzer... (AUDIT 阶段)                 │"
